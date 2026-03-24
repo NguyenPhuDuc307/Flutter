@@ -46,6 +46,7 @@ class _GameScreenState extends State<GameScreen> {
                 'name': p.name,
                 'score': p.score,
                 'lostBalls': List<int>.from(p.lostBalls),
+                'wonBalls': List<int>.from(p.wonBalls),
               })
           .toList(),
     });
@@ -64,6 +65,8 @@ class _GameScreenState extends State<GameScreen> {
         players[i]
             .lostBalls
             .addAll(List<int>.from(savedPlayers[i]['lostBalls']));
+        players[i].wonBalls.clear();
+        players[i].wonBalls.addAll(List<int>.from(savedPlayers[i]['wonBalls']));
       }
     });
   }
@@ -161,8 +164,9 @@ class _GameScreenState extends State<GameScreen> {
     if (victimIndex != null) {
       _saveState('specialBall');
       setState(() {
-        // Người ăn được cộng điểm
+        // Người ăn được cộng điểm và đánh dấu bi đã ăn
         players[playerIndex].score += points;
+        players[playerIndex].addWonBall(ball);
         // Người bị đền trừ điểm và đánh dấu bi đã mất
         players[victimIndex].score -= points;
         players[victimIndex].addLostBall(ball);
@@ -1010,6 +1014,69 @@ class _GameScreenState extends State<GameScreen> {
                 ),
               ],
             ),
+            if (player.lostBalls.isNotEmpty || player.wonBalls.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  if (player.wonBalls.isNotEmpty) ...[
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: [
+                        for (int ball in player.wonBalls)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              border: Border.all(color: Colors.black, width: 2),
+                            ),
+                            child: Text(
+                              '$ball',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                  if (player.wonBalls.isNotEmpty && player.lostBalls.isNotEmpty)
+                    const SizedBox(width: 8),
+                  if (player.lostBalls.isNotEmpty) ...[
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: [
+                        for (int ball in player.lostBalls)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              border: Border.all(color: Colors.black, width: 2),
+                            ),
+                            child: Text(
+                              '$ball',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ],
             if (isSelected) ...[
               const SizedBox(height: 12),
               _buildActionButtons(index),
