@@ -27,14 +27,14 @@ class ModeSelectionScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Column(
+              child: const Column(
                 children: [
-                  const Text(
+                  Text(
                     '🎱',
                     style: TextStyle(fontSize: 48),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
+                  SizedBox(height: 8),
+                  Text(
                     'BIDA SCORE',
                     style: TextStyle(
                       fontSize: 36,

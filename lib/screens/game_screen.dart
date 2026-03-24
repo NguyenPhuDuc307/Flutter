@@ -84,10 +84,17 @@ class _GameScreenState extends State<GameScreen> {
                   })
               .toList(),
         });
-        // Chỉ clear action history, giữ nguyên điểm
+        // Clear action history và reset bi đã ăn/mất
         actionHistory.clear();
         selectedPlayerIndex = null;
-        // Không clear lastHighBallWinner/Victim để giữ thứ tự chơi
+        lastHighBallWinner = null;
+        lastHighBallVictim = null;
+
+        // Reset bi đã ăn/mất cho tất cả người chơi
+        for (var player in players) {
+          player.lostBalls.clear();
+          player.wonBalls.clear();
+        }
       });
     }
   }
@@ -179,6 +186,145 @@ class _GameScreenState extends State<GameScreen> {
         }
       });
     }
+  }
+
+  void _handleChamDon(int playerIndex) async {
+    // Chọn người bị đền cho chấm đơn
+    final victimIndex = await _showSelectVictimForChamDonDialog(playerIndex);
+
+    if (victimIndex != null) {
+      _saveState('chamDon');
+
+      // Tính tổng điểm tất cả bi đặc biệt x 2
+      final specialBalls = widget.mode.specialBalls;
+      int totalBallPoints = 0;
+      for (int ball in specialBalls) {
+        totalBallPoints += widget.mode.getPointsForBall(ball);
+      }
+      final chamDonPoints = totalBallPoints * 2;
+
+      setState(() {
+        // Người ăn được cộng điểm và đánh dấu tất cả bi đã ăn (mỗi bi 2 lần)
+        players[playerIndex].score += chamDonPoints;
+        for (int ball in specialBalls) {
+          players[playerIndex].addWonBall(ball);
+          players[playerIndex].addWonBall(ball); // Thêm lần 2 vì gấp đôi
+        }
+
+        // Người bị đền trừ điểm và đánh dấu tất cả bi đã mất (mỗi bi 2 lần)
+        players[victimIndex].score -= chamDonPoints;
+        for (int ball in specialBalls) {
+          players[victimIndex].addLostBall(ball);
+          players[victimIndex].addLostBall(ball); // Thêm lần 2 vì gấp đôi
+        }
+
+        // Lưu lại người ăn bi cao nhất
+        final highBall = widget.mode.specialBalls.last;
+        lastHighBallWinner = playerIndex;
+        lastHighBallVictim = victimIndex;
+      });
+    }
+  }
+
+  Future<int?> _showSelectVictimForChamDonDialog(int attackerIndex) async {
+    // Tính điểm chấm đơn
+    final specialBalls = widget.mode.specialBalls;
+    int totalBallPoints = 0;
+    for (int ball in specialBalls) {
+      totalBallPoints += widget.mode.getPointsForBall(ball);
+    }
+    final chamDonPoints = totalBallPoints * 2;
+
+    return showDialog<int>(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: Colors.black, width: 4),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${players[attackerIndex].name}\nCHẤM ĐƠN',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'NGƯỜI BỊ ĐỀN',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.red,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                for (int i = 0; i < players.length; i++)
+                  if (i != attackerIndex) ...[
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context, i),
+                      child: Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.yellow,
+                          border: Border.all(color: Colors.black, width: 3),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black,
+                              offset: Offset(4, 4),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          '${players[i].name} (-$chamDonPoints)',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.black,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ],
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      border: Border.all(color: Colors.black, width: 3),
+                    ),
+                    child: const Text(
+                      'HỦY',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<int?> _showSelectVictimDialog(int attackerIndex, int ball) async {
@@ -294,11 +440,32 @@ class _GameScreenState extends State<GameScreen> {
         if (i != playerIndex) {
           players[i].score -= penaltyPerPlayer;
           totalGain += penaltyPerPlayer;
+
+          // Đánh dấu tất cả bi đã mất (mỗi bi 2 lần vì gấp đôi)
+          for (int ball in specialBalls) {
+            players[i].addLostBall(ball);
+            players[i].addLostBall(ball);
+          }
         }
       }
 
       // Người phá được cộng tổng số điểm tất cả đối thủ bị trừ
       players[playerIndex].score += totalGain;
+
+      // Đánh dấu tất cả bi đã ăn (mỗi bi 2 lần vì gấp đôi, nhân số đối thủ)
+      for (int i = 0; i < players.length; i++) {
+        if (i != playerIndex) {
+          for (int ball in specialBalls) {
+            players[playerIndex].addWonBall(ball);
+            players[playerIndex].addWonBall(ball);
+          }
+        }
+      }
+
+      // Lưu lại người ăn bi cao nhất
+      final highBall = widget.mode.specialBalls.last;
+      lastHighBallWinner = playerIndex;
+      lastHighBallVictim = null; // Không có victim cụ thể
     });
   }
 
@@ -1016,63 +1183,51 @@ class _GameScreenState extends State<GameScreen> {
             ),
             if (player.lostBalls.isNotEmpty || player.wonBalls.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Row(
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
                 children: [
                   if (player.wonBalls.isNotEmpty) ...[
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: [
-                        for (int ball in player.wonBalls)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.green,
-                              border: Border.all(color: Colors.black, width: 2),
-                            ),
-                            child: Text(
-                              '$ball',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                              ),
-                            ),
+                    for (int ball in player.wonBalls)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          border: Border.all(color: Colors.black, width: 2),
+                        ),
+                        child: Text(
+                          '$ball',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
                           ),
-                      ],
-                    ),
+                        ),
+                      ),
                   ],
-                  if (player.wonBalls.isNotEmpty && player.lostBalls.isNotEmpty)
-                    const SizedBox(width: 8),
                   if (player.lostBalls.isNotEmpty) ...[
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: [
-                        for (int ball in player.lostBalls)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              border: Border.all(color: Colors.black, width: 2),
-                            ),
-                            child: Text(
-                              '$ball',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                              ),
-                            ),
+                    for (int ball in player.lostBalls)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          border: Border.all(color: Colors.black, width: 2),
+                        ),
+                        child: Text(
+                          '$ball',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
                           ),
-                      ],
-                    ),
+                        ),
+                      ),
                   ],
                 ],
               ),
@@ -1107,10 +1262,24 @@ class _GameScreenState extends State<GameScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        _buildButton(
-          'BREAK & RUN',
-          Colors.purple,
-          () => _handleBreakAndRun(playerIndex),
+        Row(
+          children: [
+            Expanded(
+              child: _buildButton(
+                'CHẤM ĐƠN',
+                Colors.orange,
+                () => _handleChamDon(playerIndex),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildButton(
+                'BREAK & RUN',
+                Colors.purple,
+                () => _handleBreakAndRun(playerIndex),
+              ),
+            ),
+          ],
         ),
       ],
     );
