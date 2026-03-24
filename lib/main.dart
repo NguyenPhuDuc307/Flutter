@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'screens/mode_selection_screen.dart';
 
 void main() {
@@ -13,7 +14,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Bida Score',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(fontFamily: 'monospace', useMaterial3: false),
+      theme: ThemeData(
+        useMaterial3: false,
+        textTheme: GoogleFonts.oswaldTextTheme(),
+        primaryTextTheme: GoogleFonts.oswaldTextTheme(),
+      ),
       home: const ModeSelectionScreen(),
     );
   }
