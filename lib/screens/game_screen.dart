@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/game_mode.dart';
 import '../models/player.dart';
+import '../services/game_storage_service.dart';
 
 class GameScreen extends StatefulWidget {
   final GameMode mode;
@@ -8,6 +9,12 @@ class GameScreen extends StatefulWidget {
   final int handicap;
   final int numberOfPlayers;
   final List<String> playerNames;
+  final List<int>? savedScores;
+  final List<List<int>>? savedLostBalls;
+  final List<List<int>>? savedWonBalls;
+  final List<Map<String, dynamic>>? savedGameHistory;
+  final int? savedLastHighBallWinner;
+  final int? savedLastHighBallVictim;
 
   const GameScreen({
     super.key,
@@ -16,6 +23,12 @@ class GameScreen extends StatefulWidget {
     this.handicap = 0,
     this.numberOfPlayers = 2,
     this.playerNames = const [],
+    this.savedScores,
+    this.savedLostBalls,
+    this.savedWonBalls,
+    this.savedGameHistory,
+    this.savedLastHighBallWinner,
+    this.savedLastHighBallVictim,
   });
 
   @override
@@ -32,9 +45,70 @@ class _GameScreenState extends State<GameScreen> {
   int? lastHighBallVictim; // Người bị ăn bi 9/10 cuối cùng
 
   @override
+  void setState(VoidCallback fn) {
+    super.setState(fn);
+    // Auto-save sau mỗi setState
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _saveGameState();
+    });
+  }
+
+  @override
   void initState() {
     super.initState();
     _initializePlayers();
+    _loadSavedData();
+  }
+
+  void _loadSavedData() {
+    if (widget.savedScores != null) {
+      for (int i = 0;
+          i < players.length && i < widget.savedScores!.length;
+          i++) {
+        players[i].score = widget.savedScores![i];
+      }
+    }
+
+    if (widget.savedLostBalls != null) {
+      for (int i = 0;
+          i < players.length && i < widget.savedLostBalls!.length;
+          i++) {
+        players[i].lostBalls.clear();
+        players[i].lostBalls.addAll(widget.savedLostBalls![i]);
+      }
+    }
+
+    if (widget.savedWonBalls != null) {
+      for (int i = 0;
+          i < players.length && i < widget.savedWonBalls!.length;
+          i++) {
+        players[i].wonBalls.clear();
+        players[i].wonBalls.addAll(widget.savedWonBalls![i]);
+      }
+    }
+
+    if (widget.savedGameHistory != null) {
+      gameHistory = List.from(widget.savedGameHistory!);
+    }
+
+    lastHighBallWinner = widget.savedLastHighBallWinner;
+    lastHighBallVictim = widget.savedLastHighBallVictim;
+  }
+
+  Future<void> _saveGameState() async {
+    await GameStorageService.saveGame(
+      mode: widget.mode,
+      raceToScore: widget.raceToScore,
+      handicap: widget.handicap,
+      numberOfPlayers: widget.numberOfPlayers,
+      playerNames: players.map((p) => p.name).toList(),
+      playerScores: players.map((p) => p.score).toList(),
+      playerLostBalls: players.map((p) => p.lostBalls).toList(),
+      playerWonBalls: players.map((p) => p.wonBalls).toList(),
+      gameHistory: gameHistory,
+      lastHighBallWinner: lastHighBallWinner,
+      lastHighBallVictim: lastHighBallVictim,
+    );
   }
 
   void _saveState(String actionType) {
@@ -476,6 +550,7 @@ class _GameScreenState extends State<GameScreen> {
       actionHistory.clear();
       gameHistory.clear();
     });
+    GameStorageService.clearGame();
   }
 
   @override
