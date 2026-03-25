@@ -634,29 +634,31 @@ class _GameScreenState extends State<GameScreen> {
                           ),
                         ),
                       if (actionHistory.isNotEmpty) const SizedBox(width: 8),
-                      // Nút Ván mới
-                      GestureDetector(
-                        onTap: _newGame,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            border: Border.all(color: Colors.black, width: 3),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black,
-                                offset: Offset(3, 3),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.add,
-                            color: Colors.white,
-                            size: 24,
+                      // Nút Ván mới (chỉ hiện ở mode đền)
+                      if (widget.mode != GameMode.solo)
+                        GestureDetector(
+                          onTap: _newGame,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              border: Border.all(color: Colors.black, width: 3),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black,
+                                  offset: Offset(3, 3),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.add,
+                              color: Colors.white,
+                              size: 24,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
+                      if (widget.mode != GameMode.solo)
+                        const SizedBox(width: 8),
                       // Nút Reset
                       GestureDetector(
                         onTap: _resetGame,
@@ -690,7 +692,7 @@ class _GameScreenState extends State<GameScreen> {
           child: Column(
             children: [
               if (isSolo) _buildSoloView() else _buildDenView(),
-              if (gameHistory.isNotEmpty) _buildGameHistory(),
+              if (!isSolo && gameHistory.isNotEmpty) _buildGameHistory(),
             ],
           ),
         ),
